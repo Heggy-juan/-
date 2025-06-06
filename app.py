@@ -1,11 +1,6 @@
-import matplotlib as mpl
-import matplotlib.font_manager as fm
-from matplotlib import rcParams
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import os
 import sys
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
@@ -27,49 +22,7 @@ if "streamlit" not in sys.modules:
     sys.argv = ["streamlit", "run", sys.argv[0], "--global.developmentMode=false"]
     sys.exit(run())
 
-# 设置显示
-plt.rcParams['font.sans-serif'] = ['SimHei', 'Arial', 'sans-serif']
-plt.rcParams['axes.unicode_minus'] = False
 warnings.filterwarnings("ignore", category=UserWarning)
-sns.set_style("whitegrid")
-
-# 在设置显示部分添加字体配置
-def configure_fonts():
-    # 尝试设置支持中文的字体
-    try:
-        # 查找系统中支持中文的字体
-        chinese_fonts = [f.name for f in fm.fontManager.ttflist if 'hei' in f.name.lower() or 
-                         'sans' in f.name.lower() or 'noto' in f.name.lower() or 
-                         'source' in f.name.lower() or 'microsoft' in f.name.lower()]
-        
-        # 优先选择已知支持中文的字体
-        preferred_fonts = [
-            'Microsoft YaHei',  # Windows
-            'SimHei',           # Windows
-            'Heiti SC',         # macOS
-            'STHeiti',          # macOS
-            'Noto Sans CJK SC', # Linux
-            'Source Han Sans SC',# 开源字体
-            'WenQuanYi Micro Hei', # 开源字体
-            'Arial Unicode MS'   # 通用字体
-        ]
-        
-        # 找到第一个可用的字体
-        available_font = None
-        for font in preferred_fonts:
-            if font in chinese_fonts:
-                available_font = font
-                break
-        
-        # 设置全局字体
-        if available_font:
-            rcParams['font.sans-serif'] = [available_font, 'Arial', 'sans-serif']
-            rcParams['axes.unicode_minus'] = False
-            print(f"使用字体: {available_font}")
-        else:
-            print("未找到支持中文的字体，使用默认字体")
-    except:
-        print("字体配置失败，使用默认设置")
 
 # 多语言支持
 LANGUAGES = {
@@ -300,25 +253,18 @@ def add_custom_css():
             text-align: center;
         }
         
-        /* 页脚样式 - 更新为居中 */
+        /* 页脚样式 */
         .footer {
             position: fixed;
             bottom: 0;
-            left: 0;
-            right: 0;
+            width: 100%;
             background-color: #2c3e50;
             color: white;
             text-align: center;
             padding: 10px;
             z-index: 100;
         }
-        .footer p {
-            margin: 0;
-            width: 100%;
-            text-align: center;
-        }
     </style>
-    
     """, unsafe_allow_html=True)
 
 # 文件上传与处理
@@ -433,7 +379,7 @@ def train_models(X, Y):
 # 主应用
 def main():
     add_custom_css()
-    configure_fonts()  # 配置字体
+    
     # 侧边栏
     with st.sidebar:
         st.header("设置")
@@ -526,7 +472,7 @@ def main():
             with col3:
                 st.metric("R²", f"{r2_score(st.session_state.Y_test, Y_pred):.{decimal_places}f}")
             
-            # 预测表单 - 修复的关键部分
+            # 预测表单
             st.subheader(t("prediction_section"))
             with st.form("predict_form"):
                 compound_name = st.text_input(t("compound"), "新化合物")
@@ -538,7 +484,7 @@ def main():
                     example_features = ", ".join([f"{np.random.uniform(0, 1):.3f}" for _ in range(len(X.columns))])
                     st.caption(f"示例: {example_features}")
                 
-                # 修复1：增加高度到70px（至少68px）
+                # 修复高度问题
                 pasted_features = st.text_area("", value="", height=70, label_visibility="collapsed")
     
                 feature_values = []
@@ -568,7 +514,7 @@ def main():
                         feature_values[i] = st.number_input(f"{col}", value=feature_values[i], step=0.01)
                     col_idx = (col_idx + 1) % 3
                 
-                # 修复2：添加正确的表单提交按钮
+                # 添加提交按钮
                 submit_btn = st.form_submit_button(t("predict_btn"))
             
             # 处理预测请求
@@ -604,26 +550,6 @@ def main():
                             value=f"{prediction[0][1]:.{decimal_places}f} V",
                             delta=None
                         )
-                    
-                    # 可视化预测结果
-                    fig, ax = plt.subplots(figsize=(8, 4))
-                    targets = st.session_state.y_cols
-                    values = [prediction[0][0], prediction[0][1]]
-                    
-                    bars = ax.bar(targets, values, color=['#1f77b4', '#ff7f0e'])
-                    ax.set_ylabel('过电势 (V)')
-                    ax.set_title(f'{compound_name} {t("result")}')
-                    
-                    # 在柱子上添加数值标签
-                    for bar in bars:
-                        height = bar.get_height()
-                        ax.annotate(f'{height:.{decimal_places}f}',
-                                    xy=(bar.get_x() + bar.get_width() / 2, height),
-                                    xytext=(0, 3),  # 3 points vertical offset
-                                    textcoords="offset points",
-                                    ha='center', va='bottom')
-                    
-                    st.pyplot(fig)
             
             # 显示历史预测结果
             if st.session_state.prediction_results:
@@ -654,42 +580,14 @@ def main():
                 st.subheader(t("data_dist"))
                 col1, col2 = st.columns(2)
                 with col1:
-                    fig, ax = plt.subplots(figsize=(8, 4))
-                    sns.histplot(df[st.session_state.y_cols[0]], kde=True, ax=ax)
-                    ax.set_title(st.session_state.y_cols[0])
-                    st.pyplot(fig)
-                
+                    st.bar_chart(df[st.session_state.y_cols[0]].value_counts())
                 with col2:
-                    fig, ax = plt.subplots(figsize=(8, 4))
-                    sns.histplot(df[st.session_state.y_cols[1]], kde=True, ax=ax)
-                    ax.set_title(st.session_state.y_cols[1])
-                    st.pyplot(fig)
+                    st.bar_chart(df[st.session_state.y_cols[1]].value_counts())
             
-                
-            # 在数据分析部分的热力图代码中
             with tab2:
                 st.subheader(t("feature_corr"))
-                fig, ax = plt.subplots(figsize=(12, 10))
                 corr = X.corr()
-                # 使用Seaborn的热力图，设置中文支持的字体
-                sns.heatmap(
-                    corr, 
-                    annot=True, 
-                    fmt=".2f", 
-                    cmap="coolwarm", 
-                    ax=ax,
-                    annot_kws={"size": 10}  # 设置注释字体大小
-                )
-                
-                # 设置标题和标签字体
-                ax.set_title(t("feature_corr"), fontsize=16, fontweight='bold')
-                plt.xticks(fontsize=10, rotation=45, ha='right')
-                plt.yticks(fontsize=10)
-               
-                 # 调整布局
-                sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", ax=ax)
-                plt.tight_layout()
-                st.pyplot(fig)
+                st.dataframe(corr.style.background_gradient(cmap='coolwarm', axis=None).format("{:.2f}"))
             
             # 原始数据展示
             with st.expander(f"📊 {t('raw_data')}"):
@@ -750,16 +648,11 @@ def main():
                - 分析历史预测记录
                - 下载预测结果
             """)
-        
-        # 添加应用示意图
-        st.image("https://images.unsplash.com/photo-1620712943543-bcc4688e7485?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80", 
-                 caption="机器学习预测平台")
-    # 在main函数的最后
-    # 页脚
-    # 页脚
+    
+    # 页脚 - 居中显示
     st.markdown("""
     <div class="footer">
-        <p style="text-align: center; width: 100%;">机器学习预测平台 © 2025.6.6 | 技术支持: support@LSNU 23AI </p>
+        <p style="text-align: center; width: 100%;">机器学习预测平台 © 2023 | 技术支持: support@mlprediction.com</p>
     </div>
     """, unsafe_allow_html=True)
 
